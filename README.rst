@@ -1,5 +1,5 @@
-WebLab-Deusto plug-in
-=====================
+WebLab-Deusto plug-in for iLabs
+===============================
 
 The `LabManager <http://github.com/lms4labs/labmanager/>`_ provides an API for
 supporting more Remote Laboratory Management Systems (RLMS). This project is the
