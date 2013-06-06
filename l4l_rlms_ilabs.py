@@ -81,7 +81,11 @@ class RLMS(BaseRLMS):
         return None
 
     def get_laboratories(self):
-        return [ Laboratory('unr-physics', 'unr-physics') ]
+        return [ Laboratory('Time of Day Client', 'AB3904BAF6345D5979C6D85EDB5460E'),
+                 Laboratory('Amplitude Modulation', 'AM-Lab-5C053055-18F4-4B5F-915C-8C6F6555EBDE'),
+                 Laboratory('BEE Lab Analysis', 'beeA-056D99F3-7F2A-42B8-BD28-ECEC2CC72D74'),
+                 Laboratory('Building Energy Efficiency Client','beeTC-B053E3E7-3139-452E-BF07-9FBCC8CE1F6E'),
+                 Laboratory('TimeOfDay for testing RMLS', 'TOD-12345')]
 
     def reserve(self, laboratory_id, username, general_configuration_str, particular_configurations, request_payload, user_agent, origin_ip, referer):
 
