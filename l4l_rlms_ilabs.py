@@ -110,36 +110,7 @@ class RLMS(BaseRLMS):
         }
 
 
-def _rc4(data, key):
-    """
-    Encrypts the data with key key using RC4. Based on the pseudocode presented in:
-
-    Using the http://en.wikipedia.org/wiki/ARC4 
-    """
-    # The key-scheduling algorithm (KSA)
-    S = range(256)
-    j = 0
-    for i in xrange(256):
-        j = ( j + S[i] + ord(key[i % len(key)]) ) % 256
-
-        S[i], S[j] = S[j], S[i]
-
-    # The pseudo-random generation algorithm (PRGA)
-    i = 0
-    j = 0
-    output = []
-
-    for c in data:
-        i = (i + 1) % 256
-        j = (j + S[i]) % 256
-
-        S[i], S[j] = S[j], S[i]
-
-        k = ord(c) ^ S[ (S[i] + S[j]) % 256]
-        output.append( chr(k) )
-
-    return ''.join(output)
 
 
-register("FCEIA-UNR", ['1.0'], __name__)
+register("iLabs", ['1.0'], __name__)
 
