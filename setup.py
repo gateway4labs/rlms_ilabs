@@ -15,15 +15,15 @@ classifiers=[
 
 cp_license="MIT"
 
-# TODO: depend on lms4labs
+# TODO: depend on gateway4labs
 
-setup(name='l4l_rlms_unr',
+setup(name='g4l_rlms_ilabs',
       version='0.1',
-      description="FCEIA/Universidad Nacional del Rosario physics laboratory plug-in in the lms4labs",
+      description="iLabs plug-in in the gateway4labs RLMS",
       classifiers=classifiers,
-      author='Pablo Orduña, Federico Lerro',
-      author_email='pablo.orduna@deusto.es, flerro2@yahoo.com.ar',
-      url='http://github.com/lms4labs/rlms_unr/',
+      author='Pablo Orduña, Christina Stuart',
+      author_email='pablo.orduna@deusto.es, cstuart1021@gmail.com',
+      url='http://github.com/gateway4labs/rlms_ilabs/',
       license=cp_license,
-      py_modules=['l4l_rlms_unr'],
+      py_modules=['g4l_rlms_ilabs'],
      )

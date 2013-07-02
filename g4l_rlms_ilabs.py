@@ -29,7 +29,7 @@ class IlabsAddForm(AddForm):
     url          = TextField("URL",    validators = [Required(), URL() ])
 
     def __init__(self, add_or_edit, *args, **kwargs):
-        super(UnrAddForm, self).__init__(*args, **kwargs)
+        super(IlabsAddForm, self).__init__(*args, **kwargs)
         self.add_or_edit = add_or_edit
 
     @staticmethod
@@ -88,6 +88,7 @@ class RLMS(BaseRLMS):
                  Laboratory('TimeOfDay for testing RMLS', 'TOD-12345')]
 
     def reserve(self, laboratory_id, username, general_configuration_str, particular_configurations, request_payload, user_agent, origin_ip, referer):
+        #TODO
 
         dtime = datetime.datetime.utcnow().strftime("%Y-%m-%dT%H:%M:%SZ")
 
