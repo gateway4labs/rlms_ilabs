@@ -88,26 +88,9 @@ class RLMS(BaseRLMS):
                  Laboratory('TimeOfDay for testing RMLS', 'TOD-12345')]
 
     def reserve(self, laboratory_id, username, general_configuration_str, particular_configurations, request_payload, user_agent, origin_ip, referer):
-        #TODO
+        from launchilab1 import *
 
-        dtime = datetime.datetime.utcnow().strftime("%Y-%m-%dT%H:%M:%SZ")
-
-        random_str = uuid.uuid4()
-        data       = "username=%(username)s&fullname=%(fullname)s&timestamp=%(timestamp)s&random=%(random)s" % {
-            'username'  : username,
-            'fullname'  : username,
-            'timestamp' : dtime,
-            'random'    : random_str,
-        }
-        crypted   = _rc4(data, self.password)
-        data_hash = hashlib.new("md5", data).hexdigest()
-        tpl       = '%(URL)s?id_instalacion=%(INSTALLATION)s&cadena=%(DATA)s&checksum=%(HASH)s'
-
-        return tpl %  {
-            'URL'          : self.url,
-            'INSTALLATION' : self.login,
-            'DATA'         : crypted.encode('hex'), 
-            'HASH'         : data_hash,
+        url = launchilab()
         }
 
 
