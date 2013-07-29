@@ -93,7 +93,7 @@ class RLMS(BaseRLMS):
                  Laboratory('TimeOfDay for testing RMLS', 'TOD-12345')]
 
     def reserve(self, laboratory_id, username, institution, general_configuration_str, particular_configurations, request_payload, user_properties, *args, **kwargs):
-        from launchilab1 import *
+        from launchilab1 import launchilab
 
         # You may want to use a different separator, such as @ or ::, depending on if that's a valid user.
         unique_user_id = '%s_%s' % (username, institution)
