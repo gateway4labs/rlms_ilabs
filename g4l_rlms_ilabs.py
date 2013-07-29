@@ -10,8 +10,7 @@ from flask.ext.wtf import TextField, PasswordField, Required, URL, ValidationErr
 
 from labmanager.forms import AddForm, RetrospectiveForm, GenericPermissionForm
 from labmanager.data import Laboratory
-from labmanager.rlms import register
-from labmanager.rlms.base import BaseRLMS, BaseFormCreator
+from labmanager.rlms import register, BaseRLMS, BaseFormCreator, Versions, Capabilities
 
 def get_module(version):
     """get_module(version) -> proper module for that version
@@ -75,6 +74,12 @@ class RLMS(BaseRLMS):
         if self.login is None or self.password is None or self.url is None:
             raise Exception("Laboratory misconfigured: fields missing" )
 
+    def get_version(self):
+        return Versions.VERSION_1
+
+    def get_capabilities(self):
+        return []
+
     def test(self):
         json.loads(self.configuration)
         # TODO
@@ -87,13 +92,17 @@ class RLMS(BaseRLMS):
                  Laboratory('Building Energy Efficiency Client','beeTC-B053E3E7-3139-452E-BF07-9FBCC8CE1F6E'),
                  Laboratory('TimeOfDay for testing RMLS', 'TOD-12345')]
 
-    def reserve(self, laboratory_id, username, general_configuration_str, particular_configurations, request_payload, user_agent, origin_ip, referer):
+    def reserve(self, laboratory_id, username, institution, general_configuration_str, particular_configurations, request_payload, user_properties, *args, **kwargs):
         from launchilab1 import *
 
-        url = launchilab()
+        # You may want to use a different separator, such as @ or ::, depending on if that's a valid user.
+        unique_user_id = '%s_%s' % (username, institution)
+
+        url = launchilab(unique_user_id)
+
+        return {
+            'load_url' : url
         }
-
-
 
 
 register("iLabs", ['1.0'], __name__)

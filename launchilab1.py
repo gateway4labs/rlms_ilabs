@@ -1,7 +1,7 @@
 import sys, httplib
 import xml.etree.ElementTree as ET
 
-def launchilab():
+def launchilab(username):
 
     #from scorm or other format provided by the ServiceBroker 
 
@@ -25,11 +25,6 @@ def launchilab():
 
     #Specific to LMS or other SerrviceBroker registered authority
     authorityGuid = "fakeGUIDforRMLStest-12345"
-
-    #from LMS/Gateway runtime-environment
-    userName = "lmsuser"
-
-
 
 
     #########
@@ -57,7 +52,7 @@ def launchilab():
                     <LaunchLabClient xmlns="http://ilab.mit.edu/iLabs/Services">
                         <clientGuid>''' + clientGuid +'''</clientGuid>
                         <groupName>''' + groupName + '''</groupName>
-                        <userName>''' + userName +'''</userName>
+                        <userName>''' + username +'''</userName>
                         <authorityKey>''' + authorityGuid + '''</authorityKey>
                         <duration>''' + duration + '''</duration>
                         <autoStart>1</autoStart>
