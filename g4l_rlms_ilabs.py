@@ -1,52 +1,27 @@
 # -*-*- encoding: utf-8 -*-*-
 
 import sys
-import httplib
 import json
-import datetime
 import uuid
 import hashlib
+import httplib
+import datetime
+import urlparse
 
 import xml.etree.ElementTree as ET
 
 from flask.ext.wtf import TextField, PasswordField, Required, URL, ValidationError
 
+from labmanager import app
 from labmanager.forms import AddForm, RetrospectiveForm, GenericPermissionForm
 from labmanager.rlms import register, BaseRLMS, BaseFormCreator, Versions, Capabilities, Laboratory
 
-def launchilab(username):
+def launchilab(username, sb_guid, sb_url, authority_guid, group_name, lab_data):
 
-    #from scorm or other format provided by the ServiceBroker 
-
-    # ServuiceBroker Info
-    host= "ludi.mit.edu"
-    url = "/iLabServiceBroker/iLabServiceBroker.asmx"
-    sbGuid = "ISB-247A4591CA1443485D85657CF357"
-
-    # Client specific Info
-    groupName = "Experiment_Group"
-
-    # WebLab Micro-electronics -- Batch Applet lab
-    webLabClientGuid = "6BD4E985-4967-4742-854B-D44B8B844A21"
-    webLabCouponID = "36" 
-    webLabPassCode = "EDFCA4AE-A611-48D6-85E3-E86A2728B90A"
-
-    # Time of day without scheduling -- Interactive redirect
-    todNotScheduledGuid="2D1888C0-7F43-46DC-AD51-3A77A8DE8152"
-    todCouponID = "64"
-    todPassCode = "1A20F154-D467-4058-8CF3-CB0E1580F04C"
-
-    #Specific to LMS or other SerrviceBroker registered authority
-    authorityGuid = "fakeGUIDforRMLStest-12345"
-
-
-    #########
-
-    duration = "-1"
-
-    couponID = todCouponID
-    passkey = todPassCode
-    clientGuid = todNotScheduledGuid
+    duration   = lab_data['duration']
+    couponID   = lab_data['coupon_id']
+    passkey    = lab_data['pass_key']
+    clientGuid = lab_data['client_guid']
 
     soapXml = '''<?xml version="1.0" encoding="utf-8"?>
             <soap12:Envelope xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
@@ -56,7 +31,7 @@ def launchilab(username):
                     <OperationAuthHeader xmlns="http://ilab.mit.edu/iLabs/type">
                         <coupon  xmlns="http://ilab.mit.edu/iLabs/type">
                             <couponId>''' + couponID + '''</couponId>
-                            <issuerGuid>''' + sbGuid + '''</issuerGuid>
+                            <issuerGuid>''' + sb_guid + '''</issuerGuid>
                             <passkey>''' + passkey +'''</passkey>
                         </coupon>
                     </OperationAuthHeader>
@@ -64,16 +39,20 @@ def launchilab(username):
                 <soap12:Body>
                     <LaunchLabClient xmlns="http://ilab.mit.edu/iLabs/Services">
                         <clientGuid>''' + clientGuid +'''</clientGuid>
-                        <groupName>''' + groupName + '''</groupName>
+                        <groupName>''' + group_name + '''</groupName>
                         <userName>''' + username +'''</userName>
-                        <authorityKey>''' + authorityGuid + '''</authorityKey>
+                        <authorityKey>''' + authority_guid + '''</authorityKey>
                         <duration>''' + duration + '''</duration>
                         <autoStart>1</autoStart>
                     </LaunchLabClient>
                 </soap12:Body>
             </soap12:Envelope>'''
+    print soapXml
 
     #make connection
+    parse_results = urlparse.urlparse(sb_url)
+    host = parse_results.netloc
+    url  = parse_results.path
     ws = httplib.HTTP(host)
     ws.putrequest("POST", url)
 
@@ -90,9 +69,10 @@ def launchilab(username):
     #print "Response: ", statuscode, statusmessage
     #print "headers: ", header
     res = ws.getfile().read()
-    #print res, "\n"
+    print res
     root = ET.fromstring(res)
     tag = root[0][0][0][1].text
+    print tag
     return tag
 
 def get_module(version):
@@ -104,11 +84,20 @@ def get_module(version):
     # TODO: check version
     return sys.modules[__name__]
 
+# TODO: to be removed
+DEFAULT_DATA = {
+    'sb_guid'        : 'ISB-247A4591CA1443485D85657CF357',
+    'sb_url'         : 'http://ludi.mit.edu/iLabServiceBroker/iLabServiceBroker.asmx',
+    'group_name'     : 'Experiment_Group',
+    'authority_guid' : 'fakeGUIDforRMLStest-12345',
+}
+
 class IlabsAddForm(AddForm):
 
-    remote_login = TextField("Login",        validators = [Required()])
-    password     = PasswordField("Password")
-    url          = TextField("URL",    validators = [Required(), URL() ])
+    sb_guid        = TextField("SB GUID",        validators = [Required()], description = "Service Broker unique identifier", default = DEFAULT_DATA['sb_guid'])
+    sb_url         = TextField("SB URL",    validators = [Required(), URL() ], description = "Service Broker URL", default = DEFAULT_DATA['sb_url'])
+    authority_guid = TextField("Authority Guid",        validators = [Required()], description = "Authority GUID", default = DEFAULT_DATA['authority_guid'])
+    group_name     = TextField("Group name", validators = [Required()], description = "Client specific info", default = DEFAULT_DATA['group_name'])
 
     def __init__(self, add_or_edit, *args, **kwargs):
         super(IlabsAddForm, self).__init__(*args, **kwargs)
@@ -116,15 +105,7 @@ class IlabsAddForm(AddForm):
 
     @staticmethod
     def process_configuration(old_configuration, new_configuration):
-        old_configuration_dict = json.loads(old_configuration)
-        new_configuration_dict = json.loads(new_configuration)
-        if new_configuration_dict.get('password', '') == '':
-            new_configuration_dict['password'] = old_configuration_dict.get('password','')
-        return json.dumps(new_configuration_dict)
-
-    def validate_password(form, field):
-        if form.add_or_edit and field.data == '':
-            raise ValidationError("This field is required.")
+        return new_configuration
 
 class IlabsPermissionForm(RetrospectiveForm):
     pass
@@ -150,12 +131,45 @@ class RLMS(BaseRLMS):
     def __init__(self, configuration):
         self.configuration = json.loads(configuration or '{}')
 
-        self.login    = self.configuration.get('remote_login')
-        self.password = self.configuration.get('password')
-        self.url = self.configuration.get('url')
+        self.sb_guid        = self.configuration.get('sb_guid')
+        self.sb_url         = self.configuration.get('sb_url')
+        self.authority_guid = self.configuration.get('authority_guid')
+        self.group_name     = self.configuration.get('group_name')
+
+        # XXX: This should not be implemented like this. The RLMS 
+        # plug-in should be able to contact the Service Broker with the
+        # data above, and with this data, retrieve this information
+        # automatically.
+
+        sample_data = {
+           'AB3904BAF6345D5979C6D85EDB5460E' : {
+               'name'        : 'Time of Day Client',
+               'duration'    : '-1',
+               'coupon_id'   : '64',
+               'pass_key'    : '1A20F154-D467-4058-8CF3-CB0E1580F04C',
+               'client_guid' : '2D1888C0-7F43-46DC-AD51-3A77A8DE8152',
+           },
+           'ABCDEFGHIJKLMNOPQRSTUVWXYZ' : {
+               'name'        : 'WebLab Microelectronics',
+               'duration'    : '-1',
+               'coupon_id'   : '36',
+               'pass_key'    : 'EDFCA4AE-A611-48D6-85E3-E86A2728B90A',
+               'client_guid' : '6BD4E985-4967-4742-854B-D44B8B844A21',
+           },
+           # ...
+        }
+
+        # 
+        # ILAB_LABS is a configuration variable that can be set in the
+        # config.py file. 
+        # 
+        self.ilab_labs = app.config.get('ILAB_LABS', sample_data)
         
-        # if self.login is None or self.password is None or self.url is None:
-        #    raise Exception("Laboratory misconfigured: fields missing" )
+        laboratories = []
+        for laboratory_id in self.ilab_labs:
+            lab_data = self.ilab_labs[laboratory_id]
+            laboratories.append(Laboratory(lab_data['name'], laboratory_id))
+        self.laboratories = laboratories
 
     def get_version(self):
         return Versions.VERSION_1
@@ -169,18 +183,17 @@ class RLMS(BaseRLMS):
         return None
 
     def get_laboratories(self):
-        return [ Laboratory('Time of Day Client', 'AB3904BAF6345D5979C6D85EDB5460E'),
-                 Laboratory('Amplitude Modulation', 'AM-Lab-5C053055-18F4-4B5F-915C-8C6F6555EBDE'),
-                 Laboratory('BEE Lab Analysis', 'beeA-056D99F3-7F2A-42B8-BD28-ECEC2CC72D74'),
-                 Laboratory('Building Energy Efficiency Client','beeTC-B053E3E7-3139-452E-BF07-9FBCC8CE1F6E'),
-                 Laboratory('TimeOfDay for testing RMLS', 'TOD-12345')]
+        return self.laboratories
 
     def reserve(self, laboratory_id, username, institution, general_configuration_str, particular_configurations, request_payload, user_properties, *args, **kwargs):
+
         # You may want to use a different separator, such as @ or ::, depending on if that's a valid user.
         unique_user_id = '%s_%s' % (username, institution)
 
-        url = launchilab(unique_user_id)
+        lab_data = self.ilab_labs[laboratory_id]
 
+        url = launchilab(unique_user_id, self.sb_guid, self.sb_url, self.authority_guid, self.group_name, lab_data)
+        print repr(url)
         return {
             'load_url' : url
         }
