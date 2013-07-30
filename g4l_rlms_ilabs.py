@@ -4,7 +4,7 @@ import sys
 import json
 import uuid
 import hashlib
-import httplib
+import urllib2
 import datetime
 import urlparse
 
@@ -26,7 +26,7 @@ def launchilab(username, sb_guid, sb_url, authority_guid, group_name, lab_data):
     passkey    = str(lab_data['pass_key'])
     clientGuid = str(lab_data['client_guid'])
 
-    soapXml = '''<?xml version="1.0" encoding="utf-8"?>
+    soap_xml = '''<?xml version="1.0" encoding="utf-8"?>
             <soap12:Envelope xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
             xmlns:xsd="http://www.w3.org/2001/XMLSchema"
             xmlns:soap12="http://www.w3.org/2003/05/soap-envelope">
@@ -51,32 +51,18 @@ def launchilab(username, sb_guid, sb_url, authority_guid, group_name, lab_data):
                 </soap12:Body>
             </soap12:Envelope>'''
     if DEBUG:
-        print "Request:", soapXml
-    
-    #make connection
-    parse_results = urlparse.urlparse(sb_url)
-    host = parse_results.netloc
-    url  = parse_results.path
-    ws = httplib.HTTP(host)
-    ws.putrequest("POST", url)
+        print "Request:", soap_xml
+   
+    request = urllib2.Request(sb_url, data = soap_xml, headers = {
+        'Content-Type'   : 'application/soap+xml; charset=utf-8',
+    })
 
-    #add headers
-    ws.putheader("Content-Type", "application/soap+xml; charset=utf-8")
-    ws.putheader("Content-Length", "%d"%(len(soapXml),))
-    ws.endheaders()
-
-    #send request
-    ws.send(soapXml)
-
-    #get response
-    statuscode, statusmessage, header = ws.getreply()
-    #print "Response: ", statuscode, statusmessage
-    #print "headers: ", header
-    res = ws.getfile().read()
+    res = urllib2.urlopen(request).read()
     if DEBUG:
         print res
 
     root = ET.fromstring(res)
+
     # Use XPath to query for the <tag> element; get its text
     namespaces = {"ilab_type" : "http://ilab.mit.edu/iLabs/type"}
     tag = root.findtext(".//ilab_type:tag", namespaces = namespaces)
