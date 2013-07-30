@@ -16,12 +16,15 @@ from labmanager import app
 from labmanager.forms import AddForm, RetrospectiveForm, GenericPermissionForm
 from labmanager.rlms import register, BaseRLMS, BaseFormCreator, Versions, Capabilities, Laboratory
 
+DEBUG = True
+
 def launchilab(username, sb_guid, sb_url, authority_guid, group_name, lab_data):
 
-    duration   = lab_data['duration']
-    couponID   = lab_data['coupon_id']
-    passkey    = lab_data['pass_key']
-    clientGuid = lab_data['client_guid']
+    # Take lab data; pass it to string (just in case the duration for instance is an int)
+    duration   = str(lab_data['duration'])
+    couponID   = str(lab_data['coupon_id'])
+    passkey    = str(lab_data['pass_key'])
+    clientGuid = str(lab_data['client_guid'])
 
     soapXml = '''<?xml version="1.0" encoding="utf-8"?>
             <soap12:Envelope xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
@@ -47,8 +50,9 @@ def launchilab(username, sb_guid, sb_url, authority_guid, group_name, lab_data):
                     </LaunchLabClient>
                 </soap12:Body>
             </soap12:Envelope>'''
-    print soapXml
-
+    if DEBUG:
+        print "Request:", soapXml
+    
     #make connection
     parse_results = urlparse.urlparse(sb_url)
     host = parse_results.netloc
@@ -69,13 +73,15 @@ def launchilab(username, sb_guid, sb_url, authority_guid, group_name, lab_data):
     #print "Response: ", statuscode, statusmessage
     #print "headers: ", header
     res = ws.getfile().read()
-    print res
+    if DEBUG:
+        print res
 
     root = ET.fromstring(res)
     # Use XPath to query for the <tag> element; get its text
     namespaces = {"ilab_type" : "http://ilab.mit.edu/iLabs/type"}
     tag = root.findtext(".//ilab_type:tag", namespaces = namespaces)
-    print tag
+    if DEBUG:
+        print tag
     return tag
 
 def get_module(version):
@@ -196,7 +202,8 @@ class RLMS(BaseRLMS):
         lab_data = self.ilab_labs[laboratory_id]
 
         url = launchilab(unique_user_id, self.sb_guid, self.sb_url, self.authority_guid, self.group_name, lab_data)
-        print repr(url)
+        if DEBUG:
+            print repr(url)
         return {
             'load_url' : url
         }
