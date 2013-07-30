@@ -70,8 +70,11 @@ def launchilab(username, sb_guid, sb_url, authority_guid, group_name, lab_data):
     #print "headers: ", header
     res = ws.getfile().read()
     print res
+
     root = ET.fromstring(res)
-    tag = root[0][0][0][1].text
+    # Use XPath to query for the <tag> element; get its text
+    namespaces = {"ilab_type" : "http://ilab.mit.edu/iLabs/type"}
+    tag = root.findtext(".//ilab_type:tag", namespaces = namespaces)
     print tag
     return tag
 
