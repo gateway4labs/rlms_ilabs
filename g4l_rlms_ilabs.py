@@ -202,7 +202,8 @@ class RLMS(BaseRLMS):
         if DEBUG:
             print repr(url)
         return {
-            'load_url' : url
+            'load_url' : url,
+            'reservation_id' : 'not-used-yet'
         }
 
 
