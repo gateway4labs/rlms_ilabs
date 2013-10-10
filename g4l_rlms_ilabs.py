@@ -170,12 +170,23 @@ class RLMS(BaseRLMS):
         return Versions.VERSION_1
 
     def get_capabilities(self):
-        return []
+        return [ Capabilities.WIDGET ] 
 
     def test(self):
         json.loads(self.configuration)
         # TODO
         return None
+
+    def load_widget(self, reservation_id, widget_name):
+        return {
+            'url' : "" # TODO: To be implemented
+        }
+
+    def list_widgets(self, laboratory_id):
+        labs = app.config.get('ILAB_WIDGETS', {})
+        default_widget = dict( name = 'default', description = 'Default widget')
+        return labs.get(laboratory_id, [ default_widget ])
+
 
     def get_laboratories(self):
         return self.laboratories
