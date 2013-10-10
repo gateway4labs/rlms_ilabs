@@ -179,7 +179,7 @@ class RLMS(BaseRLMS):
 
     def load_widget(self, reservation_id, widget_name):
         return {
-            'url' : "" # TODO: To be implemented
+            'url' : reservation_id 
         }
 
     def list_widgets(self, laboratory_id):
@@ -203,7 +203,7 @@ class RLMS(BaseRLMS):
             print repr(url)
         return {
             'load_url' : url,
-            'reservation_id' : 'not-used-yet'
+            'reservation_id' : url
         }
 
 
