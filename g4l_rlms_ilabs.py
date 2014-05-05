@@ -7,6 +7,7 @@ import hashlib
 import urllib2
 import datetime
 import urlparse
+import traceback
 
 import xml.etree.ElementTree as ET
 
@@ -131,40 +132,6 @@ class RLMS(BaseRLMS):
         self.authority_guid = self.configuration.get('authority_guid')
         self.group_name     = self.configuration.get('group_name')
 
-        # XXX: This should not be implemented like this. The RLMS 
-        # plug-in should be able to contact the Service Broker with the
-        # data above, and with this data, retrieve this information
-        # automatically.
-
-        sample_data = {
-           'AB3904BAF6345D5979C6D85EDB5460E' : {
-               'name'        : 'Time of Day Client',
-               'duration'    : '-1',
-               'coupon_id'   : '64',
-               'pass_key'    : '1A20F154-D467-4058-8CF3-CB0E1580F04C',
-               'client_guid' : '2D1888C0-7F43-46DC-AD51-3A77A8DE8152',
-           },
-           'ABCDEFGHIJKLMNOPQRSTUVWXYZ' : {
-               'name'        : 'WebLab Microelectronics',
-               'duration'    : '-1',
-               'coupon_id'   : '36',
-               'pass_key'    : 'EDFCA4AE-A611-48D6-85E3-E86A2728B90A',
-               'client_guid' : '6BD4E985-4967-4742-854B-D44B8B844A21',
-           },
-           # ...
-        }
-
-        # 
-        # ILAB_LABS is a configuration variable that can be set in the
-        # config.py file. 
-        # 
-        self.ilab_labs = app.config.get('ILAB_LABS', sample_data)
-        
-        laboratories = []
-        for laboratory_id in self.ilab_labs:
-            lab_data = self.ilab_labs[laboratory_id]
-            laboratories.append(Laboratory(lab_data['name'], laboratory_id))
-        self.laboratories = laboratories
 
     def get_version(self):
         return Versions.VERSION_1
@@ -187,16 +154,47 @@ class RLMS(BaseRLMS):
         default_widget = dict( name = 'default', description = 'Default widget')
         return labs.get(laboratory_id, [ default_widget ])
 
+    def _get_labs_data(self):
+        ilab_labs = app.config.get('ILAB_LABS', {})
+        if ilab_labs:
+            return ilab_labs
+
+        lab_data = {}
+        try:
+            contents = urllib2.urlopen(self.sb_url.replace('iLabServiceBroker.asmx', "clientList.aspx?authKey=%s" % self.authority_guid)).read()
+            root = ET.fromstring(contents)
+
+            for lab in root.iter("lab"):
+                name           = lab.find("name").text
+                lab_data[name] = {
+                    'name'           : name,
+                    'duration'       : lab.find("duration").text,
+                    'auth_coupon_id' : lab.find("authCouponId").text,
+                    'pass_key'       : lab.find("pass_key").text,
+                    'client_guid'    : lab.find('client_guid').text
+                }
+        except:
+            print >> sys.stderr, "clientList.aspx doesn't exist. Please upgrade your iLab installation to properly support gateway4labs, or establish the ILAB_LABS variable in the LabManager"
+            traceback.print_exc()
+
+        return lab_data
 
     def get_laboratories(self):
-        return self.laboratories
+        laboratories = []
+
+        labs_data = self._get_labs_data()
+        for name in labs_data:
+            laboratories.append(Laboratory(name, name))
+
+        return laboratories
 
     def reserve(self, laboratory_id, username, institution, general_configuration_str, particular_configurations, request_payload, user_properties, *args, **kwargs):
 
         # You may want to use a different separator, such as @ or ::, depending on if that's a valid user.
         unique_user_id = '%s_%s' % (username, institution)
 
-        lab_data = self.ilab_labs[laboratory_id]
+        ilab_labs = self._get_labs_data()
+        lab_data = ilab_labs[laboratory_id]
 
         url = launchilab(unique_user_id, self.sb_guid, self.sb_url, self.authority_guid, self.group_name, lab_data)
         if DEBUG:
