@@ -71,6 +71,39 @@ def launchilab(username, sb_guid, sb_url, authority_guid, group_name, lab_data):
         print tag
     return tag
 
+def get_foreign_credentials(base_url, auth_key):
+    system_data = {}
+    lab_data = {}
+    try:
+        if base_url.endswith('/'):
+            base_url = base_url[:-1]
+
+        contents = urllib2.urlopen("%s/clientList.aspx?authKey=%s" % (base_url, auth_key)).read()
+        root = ET.fromstring(contents)
+
+        system_data['sb_name']         = root.find("Sb_Name").text
+        system_data['location']        = root.find("Location").text
+        system_data['sb_guid']         = root.find("Sb_Guid").text
+        system_data['sb_service_url']  = root.find("SbServiceUrl").text
+        system_data['sb_url']          = root.find("SbUrl").text
+        system_data['authority_group'] = root.find("AuthorityGroup").text
+
+        for lab in root.iter("lab"):
+            name           = lab.find("name").text
+            lab_data[name] = {
+                'name'           : name,
+                'duration'       : lab.find("duration").text,
+                'auth_coupon_id' : lab.find("authCouponId").text,
+                'pass_key'       : lab.find("pass_key").text,
+                'client_guid'    : lab.find('client_guid').text,
+                'description'    : lab.find('lab_description').text,
+            }
+    except:
+        print >> sys.stderr, "clientList.aspx doesn't exist. Please upgrade your iLab installation to properly support gateway4labs, or establish the ILAB_LABS variable in the LabManager"
+        traceback.print_exc()
+
+    return system_data, lab_data
+
 def get_module(version):
     """get_module(version) -> proper module for that version
 
@@ -144,12 +177,12 @@ class RLMS(BaseRLMS):
         # TODO
         return None
 
-    def load_widget(self, reservation_id, widget_name):
+    def load_widget(self, reservation_id, widget_name, **kwargs):
         return {
             'url' : reservation_id 
         }
 
-    def list_widgets(self, laboratory_id):
+    def list_widgets(self, laboratory_id, **kwargs):
         labs = app.config.get('ILAB_WIDGETS', {})
         default_widget = dict( name = 'default', description = 'Default widget')
         return labs.get(laboratory_id, [ default_widget ])
@@ -159,32 +192,13 @@ class RLMS(BaseRLMS):
         if ilab_labs:
             return ilab_labs
 
-        lab_data = {}
-        try:
-            contents = urllib2.urlopen(self.sb_url.replace('iLabServiceBroker.asmx', "clientList.aspx?authKey=%s" % self.authority_guid)).read()
-            root = ET.fromstring(contents)
 
-            for lab in root.iter("lab"):
-                name           = lab.find("name").text
-                lab_data[name] = {
-                    'name'           : name,
-                    'duration'       : lab.find("duration").text,
-                    'auth_coupon_id' : lab.find("authCouponId").text,
-                    'pass_key'       : lab.find("pass_key").text,
-                    'client_guid'    : lab.find('client_guid').text
-                }
-        except:
-            print >> sys.stderr, "clientList.aspx doesn't exist. Please upgrade your iLab installation to properly support gateway4labs, or establish the ILAB_LABS variable in the LabManager"
-            traceback.print_exc()
-
-        return lab_data
-
-    def get_laboratories(self):
+    def get_laboratories(self, **kwargs):
         laboratories = []
 
-        labs_data = self._get_labs_data()
+        system_data, labs_data = self._get_labs_data()
         for name in labs_data:
-            laboratories.append(Laboratory(name, name))
+            laboratories.append(Laboratory(name = name, laboratory_id = name, description = labs_data[name]['description']))
 
         return laboratories
 
@@ -193,7 +207,7 @@ class RLMS(BaseRLMS):
         # You may want to use a different separator, such as @ or ::, depending on if that's a valid user.
         unique_user_id = '%s_%s' % (username, institution)
 
-        ilab_labs = self._get_labs_data()
+        system_data, ilab_labs = self._get_labs_data()
         lab_data = ilab_labs[laboratory_id]
 
         url = launchilab(unique_user_id, self.sb_guid, self.sb_url, self.authority_guid, self.group_name, lab_data)
