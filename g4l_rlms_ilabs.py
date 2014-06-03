@@ -95,11 +95,13 @@ def get_foreign_credentials(base_url, auth_key):
             lab_data[name] = {
                 'name'           : name,
                 'duration'       : lab.find("duration").text,
-                'coupon_id' : lab.find("authCouponId").text,
+                'coupon_id'      : lab.find("authCouponId").text,
                 'pass_key'       : lab.find("authPasskey").text,
                 'client_guid'    : lab.find('clientGuid').text,
                 'description'    : lab.find('description').text,
             }
+            if lab.find('height'):
+                lab_data[name]['height'] = lab.find('height').text
     except:
         print >> sys.stderr, "clientList.aspx doesn't exist. Please upgrade your iLab installation to properly support gateway4labs, or establish the ILAB_LABS variable in the LabManager"
         traceback.print_exc()
@@ -125,10 +127,11 @@ DEFAULT_DATA = {
 
 class IlabsAddForm(AddForm):
 
-    sb_guid        = TextField("SB GUID",        validators = [Required()], description = "Service Broker unique identifier", default = DEFAULT_DATA['sb_guid'])
-    sb_url         = TextField("SB URL",    validators = [Required(), URL() ], description = "Service Broker URL", default = DEFAULT_DATA['sb_url'])
-    authority_guid = TextField("Authority Guid",        validators = [Required()], description = "Authority GUID", default = DEFAULT_DATA['authority_guid'])
-    group_name     = TextField("Group name", validators = [Required()], description = "Client specific info", default = DEFAULT_DATA['group_name'])
+    sb_guid        = TextField("SB GUID",        validators = [Required()], description = "Service Broker unique identifier")
+    sb_url         = TextField("SB URL",    validators = [Required(), URL() ], description = "Service Broker URL")
+    authority_guid = TextField("Authority Guid",        validators = [Required()], description = "Authority GUID")
+    group_name     = TextField("Group name", validators = [Required()], description = "Client specific info")
+    default_height = TextField("Default height", description = "Default height")
 
     def __init__(self, add_or_edit, *args, **kwargs):
         super(IlabsAddForm, self).__init__(*args, **kwargs)
@@ -167,6 +170,7 @@ class RLMS(BaseRLMS):
         self.sb_service_url = self.configuration.get('sb_service_url', self.sb_url)
         self.authority_guid = self.configuration.get('authority_guid')
         self.group_name     = self.configuration.get('group_name')
+        self.default_height = self.configuration.get('default_height')
 
 
     def get_version(self):
@@ -188,6 +192,10 @@ class RLMS(BaseRLMS):
     def list_widgets(self, laboratory_id, **kwargs):
         labs = app.config.get('ILAB_WIDGETS', {})
         default_widget = dict( name = 'default', description = 'Default widget')
+        labs_data = self._get_labs_data()
+        if labs_data and laboratory_id in labs_data and 'height' in labs_data[laboratory_id]:
+            default_widget['height'] = labs_data[laboratory_id]['height']
+
         return labs.get(laboratory_id, [ default_widget ])
 
     def _get_labs_data(self):
