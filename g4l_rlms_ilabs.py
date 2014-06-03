@@ -19,7 +19,7 @@ from labmanager.rlms import register, BaseRLMS, BaseFormCreator, Versions, Capab
 
 DEBUG = app.config.get('debug', False)
 
-def launchilab(username, sb_guid, sb_url, authority_guid, group_name, lab_data):
+def launchilab(username, sb_guid, sb_service_url, authority_guid, group_name, lab_data):
 
     # Take lab data; pass it to string (just in case the duration for instance is an int)
     duration   = str(lab_data['duration'])
@@ -54,7 +54,7 @@ def launchilab(username, sb_guid, sb_url, authority_guid, group_name, lab_data):
     if DEBUG:
         print "Request:", soap_xml
    
-    request = urllib2.Request(sb_url, data = soap_xml, headers = {
+    request = urllib2.Request(sb_service_url, data = soap_xml, headers = {
         'Content-Type'   : 'application/soap+xml; charset=utf-8',
     })
 
@@ -219,7 +219,7 @@ class RLMS(BaseRLMS):
         ilab_labs = self._get_labs_data()
         lab_data = ilab_labs[laboratory_id]
 
-        url = launchilab(unique_user_id, self.sb_guid, self.sb_url, self.authority_guid, self.group_name, lab_data)
+        url = launchilab(unique_user_id, self.sb_guid, self.sb_service_url, self.authority_guid, self.group_name, lab_data)
         if DEBUG:
             print repr(url)
         return {
