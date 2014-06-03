@@ -17,7 +17,7 @@ from labmanager import app
 from labmanager.forms import AddForm, RetrospectiveForm, GenericPermissionForm
 from labmanager.rlms import register, BaseRLMS, BaseFormCreator, Versions, Capabilities, Laboratory
 
-DEBUG = True
+DEBUG = app.config.get('debug', False)
 
 def launchilab(username, sb_guid, sb_url, authority_guid, group_name, lab_data):
 
@@ -77,26 +77,28 @@ def get_foreign_credentials(base_url, auth_key):
     try:
         if base_url.endswith('/'):
             base_url = base_url[:-1]
-
-        contents = urllib2.urlopen("%s/clientList.aspx?authKey=%s" % (base_url, auth_key)).read()
+        
+        headers = {'X-ISA-Auth-Key' : auth_key}
+        req = urllib2.Request("%s/clientList.aspx" % base_url, headers = headers)
+        contents = urllib2.urlopen(req).read()
         root = ET.fromstring(contents)
 
-        system_data['sb_name']         = root.find("Sb_Name").text
+        system_data['sb_name']         = root.find("Agent_Name").text
         system_data['location']        = root.find("Location").text
-        system_data['sb_guid']         = root.find("Sb_Guid").text
-        system_data['sb_service_url']  = root.find("SbServiceUrl").text
-        system_data['sb_url']          = root.find("SbUrl").text
-        system_data['authority_group'] = root.find("AuthorityGroup").text
+        system_data['sb_guid']         = root.find("Agent_GUID").text
+        system_data['sb_service_url']  = root.find("WebService_URL").text
+        system_data['sb_url']          = base_url
+        system_data['authority_group'] = root.find("groupName").text
 
-        for lab in root.iter("lab"):
-            name           = lab.find("name").text
+        for lab in root.iter("iLabClient"):
+            name           = lab.find("clientName").text
             lab_data[name] = {
                 'name'           : name,
                 'duration'       : lab.find("duration").text,
-                'auth_coupon_id' : lab.find("authCouponId").text,
-                'pass_key'       : lab.find("pass_key").text,
-                'client_guid'    : lab.find('client_guid').text,
-                'description'    : lab.find('lab_description').text,
+                'coupon_id' : lab.find("authCouponId").text,
+                'pass_key'       : lab.find("authPasskey").text,
+                'client_guid'    : lab.find('clientGuid').text,
+                'description'    : lab.find('description').text,
             }
     except:
         print >> sys.stderr, "clientList.aspx doesn't exist. Please upgrade your iLab installation to properly support gateway4labs, or establish the ILAB_LABS variable in the LabManager"
@@ -162,6 +164,7 @@ class RLMS(BaseRLMS):
 
         self.sb_guid        = self.configuration.get('sb_guid')
         self.sb_url         = self.configuration.get('sb_url')
+        self.sb_service_url = self.configuration.get('sb_service_url', self.sb_url)
         self.authority_guid = self.configuration.get('authority_guid')
         self.group_name     = self.configuration.get('group_name')
 
@@ -192,11 +195,17 @@ class RLMS(BaseRLMS):
         if ilab_labs:
             return ilab_labs
 
+        system_data, ilab_labs = get_foreign_credentials(self.sb_url, self.authority_guid)
+        self.sb_guid        = system_data.get('sb_guid',         self.sb_guid)
+        self.sb_service_url = system_data.get('sb_service_url',  self.sb_service_url)
+        self.group_name     = system_data.get('authority_group', self.group_name)
+        return ilab_labs
+
 
     def get_laboratories(self, **kwargs):
         laboratories = []
 
-        system_data, labs_data = self._get_labs_data()
+        labs_data = self._get_labs_data()
         for name in labs_data:
             laboratories.append(Laboratory(name = name, laboratory_id = name, description = labs_data[name]['description']))
 
@@ -207,7 +216,7 @@ class RLMS(BaseRLMS):
         # You may want to use a different separator, such as @ or ::, depending on if that's a valid user.
         unique_user_id = '%s_%s' % (username, institution)
 
-        system_data, ilab_labs = self._get_labs_data()
+        ilab_labs = self._get_labs_data()
         lab_data = ilab_labs[laboratory_id]
 
         url = launchilab(unique_user_id, self.sb_guid, self.sb_url, self.authority_guid, self.group_name, lab_data)
@@ -220,4 +229,24 @@ class RLMS(BaseRLMS):
 
 
 register("iLabs", ['1.0'], __name__)
+
+if __name__ == '__main__':
+    DEBUG = True
+    import getpass, sys, pprint
+    if len(sys.argv) == 2:
+        auth_key = sys.argv[1]
+    else:
+        auth_key = getpass.getpass("Provide auth key")
+    pprint.pprint(get_foreign_credentials('http://ilabs.cti.ac.at/iLabServiceBroker/', auth_key))
+    configuration = json.dumps({
+        'sb_url' : 'http://ilabs.cti.ac.at/iLabServiceBroker/',
+        'authority_guid' : auth_key,
+    })
+    rlms = RLMS(configuration)
+    print
+    labs = rlms.get_laboratories()
+    pprint.pprint(labs)
+    print
+    reservation_status = rlms.reserve(labs[0].laboratory_id, 'porduna', 'deusto', '', '', '', {})
+    pprint.pprint(reservation_status)
 
