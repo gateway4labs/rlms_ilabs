@@ -215,7 +215,10 @@ class RLMS(BaseRLMS):
 
         labs_data = self._get_labs_data()
         for name in labs_data:
-            laboratories.append(Laboratory(name = name, laboratory_id = name, description = labs_data[name]['description']))
+            lab = Laboratory(name = name, laboratory_id = name)
+            if 'description' in labs_data[name]:
+                lab.description = labs_data[name]['description']
+            laboratories.append(lab)
 
         return laboratories
 
