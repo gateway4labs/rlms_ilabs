@@ -195,6 +195,8 @@ class RLMS(BaseRLMS):
         labs_data = self._get_labs_data()
         if labs_data and laboratory_id in labs_data and 'height' in labs_data[laboratory_id]:
             default_widget['height'] = labs_data[laboratory_id]['height']
+        elif self.default_height:
+            default_widget['height'] = self.default_height
 
         return labs.get(laboratory_id, [ default_widget ])
 
