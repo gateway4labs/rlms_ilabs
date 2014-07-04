@@ -15,7 +15,7 @@ First install the module::
 
 Then add it in the LabManager's ``config.py``::
 
-  RLMS = ['iLabs', ... ]
+  RLMS = ['ilabs', ... ]
 
 The ``/iLab/clientList.aspx.cs`` provides an optional feature that should be deployed within an iLab Service Broker. It is a service that returns a list of lab clients available for an specific authority.
 
