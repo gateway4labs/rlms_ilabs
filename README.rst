@@ -17,6 +17,9 @@ Then add it in the LabManager's ``config.py``::
 
   RLMS = ['ilabs', ... ]
 
-The ``/iLab/clientList.aspx.cs`` provides an optional feature that should be deployed within an iLab Service Broker. It is a service that returns a list of lab clients available for an specific authority.
+
+The ``/iLab/clientList.aspx.cs`` provides an optional feature that should be deployed within an iLab Service Broker. It is a service that returns a list of lab clients available for an specific authority. Can be installed for ISA releases 4.3.1 or newer. You will need Visual Sudio to compile it.
+
+A precompiled version can be download from here: `http://ilabs.cti.ac.at/Precompiled.zip <http://ilabs.cti.ac.at/Precompiled.zip>`.
 
 Profit!
