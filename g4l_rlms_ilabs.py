@@ -180,7 +180,6 @@ class RLMS(BaseRLMS):
         return [ Capabilities.WIDGET ] 
 
     def test(self):
-        json.loads(self.configuration)
         # TODO
         return None
 
