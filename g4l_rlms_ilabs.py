@@ -14,7 +14,7 @@ import xml.etree.ElementTree as ET
 from flask.ext.wtf import TextField, PasswordField, Required, URL, ValidationError
 
 from labmanager import app
-from labmanager.forms import AddForm, RetrospectiveForm, GenericPermissionForm
+from labmanager.forms import AddForm
 from labmanager.rlms import register, BaseRLMS, BaseFormCreator, Versions, Capabilities, Laboratory
 
 DEBUG = app.config.get('debug', False)
@@ -141,22 +141,10 @@ class IlabsAddForm(AddForm):
     def process_configuration(old_configuration, new_configuration):
         return new_configuration
 
-class IlabsPermissionForm(RetrospectiveForm):
-    pass
-
-class IlabsLmsPermissionForm(IlabsPermissionForm, GenericPermissionForm):
-    pass
-
 class IlabsFormCreator(BaseFormCreator):
 
     def get_add_form(self):
         return IlabsAddForm
-
-    def get_permission_form(self):
-        return IlabsPermissionForm
-
-    def get_lms_permission_form(self):
-        return IlabsLmsPermissionForm
 
 FORM_CREATOR = IlabsFormCreator()
 
