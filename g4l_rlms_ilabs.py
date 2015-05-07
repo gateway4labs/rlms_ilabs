@@ -79,8 +79,7 @@ def get_foreign_credentials(base_url, auth_key):
             base_url = base_url[:-1]
         
         headers = {'X-ISA-Auth-Key' : auth_key}
-        req = urllib2.Request("%s/clientList.aspx" % base_url, headers = headers)
-        contents = urllib2.urlopen(req).read()
+        contents = ILAB.cached_session.get("%s/clientList.aspx" % base_url, headers = headers).text
         root = ET.fromstring(contents)
 
         system_data['sb_name']         = root.find("Agent_Name").text
@@ -188,6 +187,10 @@ class RLMS(BaseRLMS):
         return labs.get(laboratory_id, [ default_widget ])
 
     def _get_labs_data(self):
+        labs_data = ILAB.rlms_cache.get('labs_data')
+        if labs_data is not None:
+            return labs_data
+
         ilab_labs = app.config.get('ILAB_LABS', {})
         if ilab_labs:
             return ilab_labs
@@ -196,6 +199,8 @@ class RLMS(BaseRLMS):
         self.sb_guid        = system_data.get('sb_guid',         self.sb_guid)
         self.sb_service_url = system_data.get('sb_service_url',  self.sb_service_url)
         self.group_name     = system_data.get('authority_group', self.group_name)
+
+        ILAB.rlms_cache['labs_data'] = ilab_labs
         return ilab_labs
 
 
@@ -227,8 +232,11 @@ class RLMS(BaseRLMS):
             'reservation_id' : url
         }
 
+def populate_cache(rlms):
+    rlms.get_laboratories()
 
-register("iLabs", ['1.0'], __name__)
+ILAB = register("iLabs", ['1.0'], __name__)
+ILAB.add_local_periodic_task('Populating cache', populate_cache, minutes = 55)
 
 if __name__ == '__main__':
     DEBUG = True
