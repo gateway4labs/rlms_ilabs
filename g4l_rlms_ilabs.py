@@ -79,7 +79,11 @@ def get_foreign_credentials(base_url, auth_key):
             base_url = base_url[:-1]
         
         headers = {'X-ISA-Auth-Key' : auth_key}
-        contents = ILAB.cached_session.get("%s/clientList.aspx" % base_url, headers = headers).text
+
+        client_list_url = "%s/clientList.aspx" % base_url
+        r = ILAB.cached_session.get(client_list_url, headers = headers)
+        r.raise_for_status()
+        contents = r.text
         root = ET.fromstring(contents)
 
         system_data['sb_name']         = root.find("Agent_Name").text
@@ -178,7 +182,7 @@ class RLMS(BaseRLMS):
     def list_widgets(self, laboratory_id, **kwargs):
         labs = app.config.get('ILAB_WIDGETS', {})
         default_widget = dict( name = 'default', description = 'Default widget')
-        labs_data = self._get_labs_data()
+        labs_data = self._get_labs_data(use_cache = True)
         if labs_data and laboratory_id in labs_data and 'height' in labs_data[laboratory_id]:
             default_widget['height'] = labs_data[laboratory_id]['height']
         elif self.default_height:
@@ -186,28 +190,33 @@ class RLMS(BaseRLMS):
 
         return labs.get(laboratory_id, [ default_widget ])
 
-    def _get_labs_data(self):
-        labs_data = ILAB.rlms_cache.get('labs_data')
-        if labs_data is not None:
-            return labs_data
-
+    def _get_labs_data(self, use_cache):
         ilab_labs = app.config.get('ILAB_LABS', {})
         if ilab_labs:
             return ilab_labs
 
-        system_data, ilab_labs = get_foreign_credentials(self.sb_url, self.authority_guid)
+        foreign_credentials = None
+        if use_cache:
+            foreign_credentials = ILAB.rlms_cache.get('foreign_credentials')
+
+        if foreign_credentials is not None:
+            system_data, ilab_labs = foreign_credentials
+        else:
+            system_data, ilab_labs = get_foreign_credentials(self.sb_url, self.authority_guid)
+            foreign_credentials = system_data, ilab_labs
+            ILAB.rlms_cache['foreign_credentials'] = foreign_credentials
+
         self.sb_guid        = system_data.get('sb_guid',         self.sb_guid)
         self.sb_service_url = system_data.get('sb_service_url',  self.sb_service_url)
         self.group_name     = system_data.get('authority_group', self.group_name)
 
-        ILAB.rlms_cache['labs_data'] = ilab_labs
         return ilab_labs
 
 
     def get_laboratories(self, **kwargs):
         laboratories = []
 
-        labs_data = self._get_labs_data()
+        labs_data = self._get_labs_data(use_cache = True)
         for name in labs_data:
             lab = Laboratory(name = name, laboratory_id = name)
             if 'description' in labs_data[name]:
@@ -221,7 +230,7 @@ class RLMS(BaseRLMS):
         # You may want to use a different separator, such as @ or ::, depending on if that's a valid user.
         unique_user_id = '%s_%s' % (username, institution)
 
-        ilab_labs = self._get_labs_data()
+        ilab_labs = self._get_labs_data(use_cache = False)
         lab_data = ilab_labs[laboratory_id]
 
         url = launchilab(unique_user_id, self.sb_guid, self.sb_service_url, self.authority_guid, self.group_name, lab_data)
