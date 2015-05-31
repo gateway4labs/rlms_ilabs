@@ -103,8 +103,13 @@ def get_foreign_credentials(base_url, auth_key):
                 'client_guid'    : lab.find('clientGuid').text,
                 'description'    : lab.find('description').text,
             }
-            if lab.find('height'):
+            if lab.find('height') is not None:
                 lab_data[name]['height'] = lab.find('height').text
+
+            if lab.find('translations') is not None:
+                translations_url = lab.find('translations').text
+                if translations_url:
+                    lab_data[name]['translations'] = lab.find('translations').text
     except:
         print >> sys.stderr, "clientList.aspx doesn't exist. Please upgrade your iLab installation to properly support gateway4labs, or establish the ILAB_LABS variable in the LabManager"
         traceback.print_exc()
@@ -168,7 +173,7 @@ class RLMS(BaseRLMS):
         return Versions.VERSION_1
 
     def get_capabilities(self):
-        return [ Capabilities.WIDGET ] 
+        return [ Capabilities.WIDGET, Capabilities.TRANSLATIONS ] 
 
     def test(self):
         # TODO
@@ -225,6 +230,56 @@ class RLMS(BaseRLMS):
 
         return laboratories
 
+    def get_translations(self, laboratory_id, **kwargs):
+        KEY = u'__translations_%s' % laboratory_id
+        translations = ILAB.rlms_cache.get(KEY)
+        if translations:
+            return translations
+
+        labs_data = self._get_labs_data(use_cache = True)
+        lab_data = labs_data.get(laboratory_id, {})
+        translations_url = lab_data.get('translations')
+        print "Translations url:", translations_url
+        result = {}
+        if translations_url:
+            try:
+                r = ILAB.cached_session.get(translations_url)
+                r.raise_for_status()
+                translations = r.json()
+                
+                metadata = translations.pop('@metadata', {})
+                mails = metadata.get('author_mails', [])
+                namespaces = metadata.get('namespaces', {})
+
+                processed_translations = {
+                    # language : {
+                    #     key : {
+                    #        'value' : value,
+                    #        'namespace' : namespace,
+                    #     },
+                    # }
+                }
+
+                for lang, lang_data in translations.iteritems():
+                    processed_translations[lang] = {}
+
+                    for key, value in lang_data.iteritems():
+                        processed_translations[lang][key] = {
+                            'value' : value,
+                        }
+                        if key in namespaces:
+                            processed_translations[lang][key]['namespace'] = namespaces[key]
+
+                result = {
+                    'translations' : processed_translations,
+                    'mails' : mails,
+                }
+            except Exception as e:
+                traceback.print_exc()
+
+        ILAB.rlms_cache[KEY] = result
+        return result
+
     def reserve(self, laboratory_id, username, institution, general_configuration_str, particular_configurations, request_payload, user_properties, *args, **kwargs):
 
         # You may want to use a different separator, such as @ or ::, depending on if that's a valid user.
@@ -253,7 +308,7 @@ if __name__ == '__main__':
     if len(sys.argv) == 2:
         auth_key = sys.argv[1]
     else:
-        auth_key = getpass.getpass("Provide auth key")
+        auth_key = getpass.getpass("Provide auth key: ")
     pprint.pprint(get_foreign_credentials('http://ilabs.cti.ac.at/iLabServiceBroker/', auth_key))
     configuration = json.dumps({
         'sb_url' : 'http://ilabs.cti.ac.at/iLabServiceBroker/',
@@ -266,4 +321,8 @@ if __name__ == '__main__':
     print
     reservation_status = rlms.reserve(labs[0].laboratory_id, 'porduna', 'deusto', '', '', '', {})
     pprint.pprint(reservation_status)
+
+    print 
+    print "Translations:"
+    print rlms.get_translations("Blackbody Radiation Lab")
 
