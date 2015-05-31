@@ -239,7 +239,6 @@ class RLMS(BaseRLMS):
         labs_data = self._get_labs_data(use_cache = True)
         lab_data = labs_data.get(laboratory_id, {})
         translations_url = lab_data.get('translations')
-        print "Translations url:", translations_url
         result = {}
         if translations_url:
             try:
