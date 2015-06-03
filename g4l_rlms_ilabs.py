@@ -296,7 +296,8 @@ class RLMS(BaseRLMS):
         }
 
 def populate_cache(rlms):
-    rlms.get_laboratories()
+    for lab in rlms.get_laboratories():
+        rlms.get_translations(lab.laboratory_id)
 
 ILAB = register("iLabs", ['1.0'], __name__)
 ILAB.add_local_periodic_task('Populating cache', populate_cache, minutes = 55)
@@ -324,4 +325,5 @@ if __name__ == '__main__':
     print 
     print "Translations:"
     print rlms.get_translations("Blackbody Radiation Lab")
-
+    
+    populate_cache(rlms)
