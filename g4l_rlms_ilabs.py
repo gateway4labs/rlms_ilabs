@@ -81,7 +81,7 @@ def get_foreign_credentials(base_url, auth_key):
         headers = {'X-ISA-Auth-Key' : auth_key}
 
         client_list_url = "%s/clientList.aspx" % base_url
-        r = ILAB.cached_session.get(client_list_url, headers = headers)
+        r = ILAB.cached_session.timeout_get(client_list_url, headers = headers)
         r.raise_for_status()
         contents = r.text
         root = ET.fromstring(contents)
@@ -242,7 +242,7 @@ class RLMS(BaseRLMS):
         result = {}
         if translations_url:
             try:
-                r = ILAB.cached_session.get(translations_url)
+                r = ILAB.cached_session.timeout_get(translations_url)
                 r.raise_for_status()
                 translations = r.json()
                 
