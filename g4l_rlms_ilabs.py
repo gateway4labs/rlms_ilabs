@@ -58,7 +58,7 @@ def launchilab(username, sb_guid, sb_service_url, authority_guid, group_name, la
         'Content-Type'   : 'application/soap+xml; charset=utf-8',
     })
 
-    res = urllib2.urlopen(request).read()
+    res = urllib2.urlopen(request, timeout=10).read()
     if DEBUG:
         print res
 
@@ -173,7 +173,7 @@ class RLMS(BaseRLMS):
         return Versions.VERSION_1
 
     def get_capabilities(self):
-        return [ Capabilities.WIDGET, Capabilities.TRANSLATIONS ] 
+        return [ Capabilities.WIDGET, Capabilities.TRANSLATIONS, Capabilities.CHECK_URLS ]
 
     def test(self):
         # TODO
@@ -217,6 +217,9 @@ class RLMS(BaseRLMS):
 
         return ilab_labs
 
+    def get_check_urls(self, laboratory_id):
+        labs_data = self._get_labs_data(True)
+        return [ self.sb_url ]
 
     def get_laboratories(self, **kwargs):
         laboratories = []
